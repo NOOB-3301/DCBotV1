@@ -3,6 +3,8 @@ import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from "dis
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "url";
+import axios from "axios";
+import { getLink } from "./CollabLink.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,5 +84,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 });
+
+client.on(Events.MessageCreate, async(message) => {
+  message.channel.sendTyping()
+  if(message.author.bot) return; // Ignore messages from bots
+
+  console.log("the message is : ", message.content)
+
+  const resp = await axios.post(' https://c5f1-34-16-239-123.ngrok-free.app/api/generate', 
+    {
+      "model": "ZeroTwoV1",
+      "prompt": `${message.content}`,
+      "stream": false
+    }
+  )
+
+  console.log("the response is : ", resp.data)
+
+  message.reply(`the reply is ${resp.data.response}`)
+})
 
 client.login(token);
