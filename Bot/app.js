@@ -5,6 +5,9 @@ import path from "node:path";
 import { fileURLToPath } from "url";
 import axios from "axios";
 import { getLink } from "./CollabLink.js";
+import { connectDb } from "./db.js";
+import { generateEmbedding } from "./DataBaseCalls/Embedding.js";
+import { text } from "node:stream/consumers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +19,9 @@ if (!token) {
   console.log("❌ No token found");
   process.exit(1);
 }
-
+connectDb()
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((error) => console.error("❌ MongoDB connection error:", error));
 // Add intents to allow the bot to receive slash command interactions properly
 const client = new Client({
   intents: [
@@ -98,15 +103,22 @@ client.on(Events.MessageCreate, async(message) => {
 
   console.log("the message is : ", message.content)
 
-  const resp = await axios.post(`${newLink}api/generate`, 
+  // const resp = await axios.post(`${newLink}api/generate`, 
+  const resp = await axios.post(`http://localhost:11434/api/generate`, 
+
     {
-      "model": "ZeroTwoV1",
+      // "model": "ZeroTwoV1",
+      "model":"deepseek-r1:1.5b",
       "prompt": `${message.content}`,
       "stream": false
     }
   )
 
   console.log("the response is : ", resp.data)
+
+  console.log("generating embedding")
+
+  generateEmbedding(`[user]:${message.content} \n [you]:${resp.data.response}`).then((text)=>{console.log(text)})
 
   message.reply(`the reply is ${resp.data.response}`)
 })
