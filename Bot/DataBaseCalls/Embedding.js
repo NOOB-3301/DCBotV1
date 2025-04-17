@@ -8,7 +8,7 @@ const generateEmbedding = async (text) => {
     normalize: true, // normalize vector length
   });
 
-  return output.data; // this is your Float32Array
+  return Array.from(output.data); // this is your Float32Array
 };
 
 export {generateEmbedding}

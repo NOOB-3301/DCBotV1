@@ -7,7 +7,8 @@ import axios from "axios";
 import { getLink } from "./CollabLink.js";
 import { connectDb } from "./db.js";
 import { generateEmbedding } from "./DataBaseCalls/Embedding.js";
-import { text } from "node:stream/consumers";
+import Message from "./DataBaseCalls/Message.model.js";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,7 +32,7 @@ const client = new Client({
     GatewayIntentBits.DirectMessageTyping,
     GatewayIntentBits.DirectMessages
   ],
-  partials:[
+  partials: [
     Partials.Channel,
     Partials.Message
   ]
@@ -71,7 +72,7 @@ client.once(Events.ClientReady, (readyClient) => {
 // Handle slash commands
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-    // console.log(interaction)
+  // console.log(interaction)
   const command = interaction.client.commands.get(interaction.commandName);
   if (!command) {
     console.error(`No command matching ${interaction.commandName} was found.`);
@@ -96,29 +97,52 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-client.on(Events.MessageCreate, async(message) => {
+client.on(Events.MessageCreate, async (message) => {
   const newLink = getLink()
   message.channel.sendTyping()
-  if(message.author.bot) return; // Ignore messages from bots
+  if (message.author.bot) return; // Ignore messages from bots
 
   console.log("the message is : ", message.content)
 
+  const embedding = await generateEmbedding(`[user]:${message.content}`)
+  try {
+    const similarMessages = await Message.aggregate([
+      {
+        "$vectorSearch":{
+          "index":"vector_index",
+          "path":"embedding",
+          "queryVector":embedding,
+          "limit":5,
+          "numCandidates":100
+        }
+      }
+    ])
+    console.log(similarMessages)
+  } catch (err) {
+    console.error("Error in vector search:", err);
+  }
+  
   // const resp = await axios.post(`${newLink}api/generate`, 
-  const resp = await axios.post(`http://localhost:11434/api/generate`, 
+  const resp = await axios.post(`http://localhost:11434/api/generate`,
 
     {
       // "model": "ZeroTwoV1",
-      "model":"deepseek-r1:1.5b",
+      "model": "deepseek-r1:1.5b",
       "prompt": `${message.content}`,
       "stream": false
     }
   )
+  
 
-  console.log("the response is : ", resp.data)
+  // const newEmbedding = await generateEmbedding(`[user]:${message.content} [you]:${resp.data.response}`)
 
-  console.log("generating embedding")
+  // const newMessage = await Message.create({
+  //   prompt: message.content,
+  //   response:resp.data.response,
+  //   embedding: newEmbedding
+  // })
 
-  generateEmbedding(`[user]:${message.content} \n [you]:${resp.data.response}`).then((text)=>{console.log(text)})
+  // console.log(newMessage)
 
   message.reply(`the reply is ${resp.data.response}`)
 })
