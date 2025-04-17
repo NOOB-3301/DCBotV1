@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from "discord.js";
+import { Client, Events, GatewayIntentBits, Collection, MessageFlags, Partials } from "discord.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "url";
@@ -23,7 +23,13 @@ const client = new Client({
     GatewayIntentBits.Guilds, // Required for slash commands
     GatewayIntentBits.GuildMessages, // Optional: If you want messageCreate events
     GatewayIntentBits.MessageContent, // Optional: If you want to read message content
+    GatewayIntentBits.DirectMessageTyping,
+    GatewayIntentBits.DirectMessages
   ],
+  partials:[
+    Partials.Channel,
+    Partials.Message
+  ]
 });
 
 client.commands = new Collection();
@@ -86,12 +92,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.on(Events.MessageCreate, async(message) => {
+  const newLink = getLink()
   message.channel.sendTyping()
   if(message.author.bot) return; // Ignore messages from bots
 
   console.log("the message is : ", message.content)
 
-  const resp = await axios.post(' https://c5f1-34-16-239-123.ngrok-free.app/api/generate', 
+  const resp = await axios.post(`${newLink}api/generate`, 
     {
       "model": "ZeroTwoV1",
       "prompt": `${message.content}`,
